@@ -12,8 +12,8 @@ import org.springframework.test.context.junit4.SpringRunner;
 @RunWith(SpringRunner.class)
 @SpringBootTest
 @ContextConfiguration
-public class S3utilApplicationTests {
-	private static final Logger LOGGER = LoggerFactory.getLogger(S3utilApplicationTests.class);
+public class S3HelperApplicationTests {
+	private static final Logger LOGGER = LoggerFactory.getLogger(S3HelperApplicationTests.class);
 	@Autowired S3Service s3Service;
 
 	@Test
