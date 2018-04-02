@@ -19,10 +19,12 @@ public class S3ServiceConfiguration {
                 StringUtils.isNullOrEmpty(serviceProperties.getBucket())) {
             throw new IllegalArgumentException("S3Service is required external.s3.accessKey, external.s3.secretKey, external.s3.bucket");
         }
-        return new S3Service(serviceProperties.getAccessKey(),
+        S3Service s3Service = new S3Service();
+        s3Service.initialize(serviceProperties.getAccessKey(),
                 serviceProperties.getSecretKey(),
                 serviceProperties.getMaxSize(),
                 serviceProperties.getTimeout(),
                 serviceProperties.getBucket());
+        return s3Service;
     }
 }

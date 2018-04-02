@@ -13,7 +13,6 @@ import java.util.*;
  * @author baodn
  * Created on 02 Apr 2018
  */
-@Service
 public class S3Service extends GeneralS3Service {
     private static final Logger LOGGER = LoggerFactory
             .getLogger(S3Service.class);
@@ -24,10 +23,11 @@ public class S3Service extends GeneralS3Service {
     private int timeout; //second
     private AmazonS3Client amazonS3;
 
-    @Autowired
-    private GeneralS3Service generalS3Service;
+    public S3Service() {
+        super();
+    }
 
-    public S3Service(String awsAccessKeyId, String awsSecretAccessKey, Integer maxSize, Integer timeout, String bucket) {
+    public void initialize(String awsAccessKeyId, String awsSecretAccessKey, Integer maxSize, Integer timeout, String bucket) {
         this.awsAccessKeyId = awsAccessKeyId;
         this.awsSecretAccessKey = awsSecretAccessKey;
         this.bucket = bucket;
@@ -47,11 +47,11 @@ public class S3Service extends GeneralS3Service {
     }
 
     public String getAccessURL(String fileKey, String directory) {
-        return generalS3Service.getAccessURL(bucket, fileKey, directory, amazonS3, timeout);
+        return getAccessURL(bucket, fileKey, directory, amazonS3, timeout);
     }
 
     public Map<String, String> getUploadParams(String fileKey, String callback, String directory) {
-        return generalS3Service.getUploadParams(awsAccessKeyId, awsSecretAccessKey, bucket, fileKey, callback, directory, maxSize, timeout);
+        return getUploadParams(awsAccessKeyId, awsSecretAccessKey, bucket, fileKey, callback, directory, maxSize, timeout);
     }
 }
 
