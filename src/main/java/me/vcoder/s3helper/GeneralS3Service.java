@@ -5,11 +5,11 @@ import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.UnsupportedEncodingException;
+import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
@@ -42,13 +42,12 @@ public abstract class GeneralS3Service {
     public String getAccessURL(String bucket, String fileKey, String directory, AmazonS3Client amazonS3, int timeout) {
         GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(
                 bucket, joinPath(directory, fileKey));
-        generatePresignedUrlRequest.setMethod(HttpMethod.PUT);
+        generatePresignedUrlRequest.setMethod(HttpMethod.GET);
         generatePresignedUrlRequest.setExpiration(getAmazonS3Expiration(timeout));
         generatePresignedUrlRequest.setBucketName(bucket);
-        generatePresignedUrlRequest.setContentType("application/x-www-form-urlencoded");
-        java.net.URL url = amazonS3.generatePresignedUrl(
-                generatePresignedUrlRequest);
-        return url.toExternalForm();
+        java.net.URL s = amazonS3.generatePresignedUrl(generatePresignedUrlRequest);
+
+        return s.toString();
     }
 
     public Map<String, String> getUploadParams(String awsAccessKeyId, String awsSecretAccessKey, String bucket, String fileKey, String callback, String directory, int maxSize, int timeout) {
