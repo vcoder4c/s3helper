@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.UnsupportedEncodingException;
-import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
@@ -27,9 +26,12 @@ public abstract class GeneralS3Service {
     private static final String $ACL = "$acl";
     private static final String $SUCCESS_ACTION_REDIRECT = "$success_action_redirect";
     private static final String $CONTENT_LENGTH = "$contentLength";
+    private static final String $CONTENT_TYPE = "$contentType";
     private static final String ACL = "acl";
     private static final String PRIVATE = "private";
+    private static final String PUBLIC = "public-read";
     private static final String KEY = "key";
+    private static final String CONTENT_TYPE = "Content-Type";
     private static final String SUCCESS_ACTION_REDIRECT = "success_action_redirect";
     private static final String UTF_8 = "UTF-8";
     private static final String AWS_ACCESS_KEY_ID = "AWSAccessKeyId";
@@ -50,9 +52,15 @@ public abstract class GeneralS3Service {
         return s.toString();
     }
 
-    public Map<String, String> getUploadParams(String awsAccessKeyId, String awsSecretAccessKey, String bucket, String fileKey, String callback, String directory, int maxSize, int timeout) {
-        Map<String, String> formFields = makeFormFields(
-                joinPath(directory, fileKey), callback);
+    public Map<String, String> getUploadParams(String awsAccessKeyId, String awsSecretAccessKey, String bucket, String fileKey, String callback, String directory, int maxSize, int timeout, boolean isPrivate, String contentType) {
+        Map<String, String> formFields = null;
+        if(isPrivate) {
+            formFields = makeFormFields(
+                    joinPath(directory, fileKey), PRIVATE, callback, contentType);
+        } else {
+            formFields = makeFormFields(
+                    joinPath(directory, fileKey), PUBLIC, callback, contentType);
+        }
         String policy = null;
         try {
             policy = makePolicy(formFields, bucket, maxSize, timeout);
@@ -85,12 +93,15 @@ public abstract class GeneralS3Service {
     private String makePolicy(Map<String, String> formFields, String bucket, int maxSize, int timeout)
             throws UnsupportedEncodingException {
         String policyDocument = "{\"expiration\": \"" + $EXPIRATION + "\","
-                + "\"conditions\": [" + "{\"bucket\": \"" + $BUCKET + "\"},"
+                + "\"conditions\": [" +
+                "{\"bucket\": \"" + $BUCKET + "\"},"
                 + "[\"starts-with\", \"$KEY\", \"" + $S3KEY + "\"],"
                 + "{\"acl\": \"" + $ACL + "\"},"
-                + "{\"success_action_redirect\": \"" + $SUCCESS_ACTION_REDIRECT
-                + "\"}," + "[\"content-length-range\", 0, " + $CONTENT_LENGTH
-                + "]" + "]" + "}";
+                + "{\"success_action_redirect\": \"" + $SUCCESS_ACTION_REDIRECT + "\"},"
+                + "[\"content-length-range\", 0, " + $CONTENT_LENGTH + "],"
+                + "[\"starts-with\", \"$Content-Type\", \""+ $CONTENT_TYPE + "\"]"
+                + "]"
+                + "}";
         String date = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
                 .format(getAmazonS3Expiration(timeout));
         policyDocument = policyDocument
@@ -100,20 +111,22 @@ public abstract class GeneralS3Service {
                 .replace($SUCCESS_ACTION_REDIRECT,
                         formFields.get(SUCCESS_ACTION_REDIRECT))
                 .replace($CONTENT_LENGTH, String.valueOf(maxSize))
-                .replace($S3KEY, formFields.get(KEY));
+                .replace($S3KEY, formFields.get(KEY))
+                .replace($CONTENT_TYPE, formFields.get(CONTENT_TYPE));
+        LOGGER.info("policy Document:" + policyDocument);
         String policy = Base64.getMimeEncoder()
                 .encodeToString(policyDocument.getBytes(UTF_8)).replaceAll("\n", "")
                 .replaceAll("\r", "");
         return policy;
     }
 
-    private Map<String, String> makeFormFields(String s3Key, String callback) {
+    private Map<String, String> makeFormFields(String s3Key, String acl, String callback, String contentType) {
         Map<String, String> formFields = new HashMap<>();
         formFields.put(KEY, s3Key);
-        formFields.put(ACL, PRIVATE);
+        formFields.put(ACL, acl);
         formFields.put(SUCCESS_ACTION_REDIRECT, callback);
+        formFields.put(CONTENT_TYPE, contentType);
         return formFields;
-
     }
 
     private String joinPath(String basePath, String subPath) {

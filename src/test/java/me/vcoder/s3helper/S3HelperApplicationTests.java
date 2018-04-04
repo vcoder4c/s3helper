@@ -9,6 +9,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.util.Map;
+
 @RunWith(SpringRunner.class)
 @SpringBootTest
 @ContextConfiguration
@@ -18,6 +20,6 @@ public class S3HelperApplicationTests {
 
 	@Test
 	public void contextLoads() {
-        LOGGER.info(s3Service.getUploadParams("abc.img", "", ".").toString());
+        Map<String, String> params = s3Service.getPublicUploadParams("abc.png", "", "logo");
 	}
 }

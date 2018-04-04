@@ -46,12 +46,28 @@ public class S3Service extends GeneralS3Service {
         LOGGER.info("Initialize S3Service successfully");
     }
 
-    public String getAccessURL(String fileKey, String directory) {
+    public String getPrivateAccessURL(String fileKey, String directory) {
         return getAccessURL(bucket, fileKey, directory, amazonS3, timeout);
     }
 
-    public Map<String, String> getUploadParams(String fileKey, String callback, String directory) {
-        return getUploadParams(awsAccessKeyId, awsSecretAccessKey, bucket, fileKey, callback, directory, maxSize, timeout);
+    public String getPublicAccessURL(String fileKey, String directory) {
+        return "https://" + bucket + ".s3.amazonaws.com/" + directory + "/" + fileKey;
+    }
+
+    public Map<String, String> getPrivateUploadParams(String fileKey, String callback, String directory) {
+        return getUploadParams(awsAccessKeyId, awsSecretAccessKey, bucket, fileKey, callback, directory, maxSize, timeout, true, "");
+    }
+
+    public Map<String, String> getPrivateUploadParams(String fileKey, String callback, String directory, String contentType) {
+        return getUploadParams(awsAccessKeyId, awsSecretAccessKey, bucket, fileKey, callback, directory, maxSize, timeout, true, contentType);
+    }
+
+    public Map<String, String> getPublicUploadParams(String fileKey, String callback, String directory) {
+        return getUploadParams(awsAccessKeyId, awsSecretAccessKey, bucket, fileKey, callback, directory, maxSize, timeout, false, "");
+    }
+
+    public Map<String, String> getPublicUploadParams(String fileKey, String callback, String directory, String contentType) {
+        return getUploadParams(awsAccessKeyId, awsSecretAccessKey, bucket, fileKey, callback, directory, maxSize, timeout, false, contentType);
     }
 }
 
