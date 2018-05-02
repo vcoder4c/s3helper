@@ -4,9 +4,7 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3Client;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
+import java.io.InputStream;
 import java.util.*;
 
 /**
@@ -68,6 +66,14 @@ public class S3Service extends GeneralS3Service {
 
     public Map<String, String> getPublicUploadParams(String fileKey, String callback, String directory, String contentType) {
         return getUploadParams(awsAccessKeyId, awsSecretAccessKey, bucket, fileKey, callback, directory, maxSize, timeout, false, contentType);
+    }
+
+    public void uploadPrivateFile(String fileKey, String directory, InputStream inputStream, String mimeType) {
+        directUploadFile(bucket, fileKey, directory, inputStream, mimeType, false, amazonS3);
+    }
+
+    public void uploadPublicFile(String fileKey, String directory, InputStream inputStream, String mimeType) {
+        directUploadFile(bucket, fileKey, directory, inputStream, mimeType, true, amazonS3);
     }
 }
 

@@ -2,12 +2,16 @@ package me.vcoder.s3helper;
 
 import com.amazonaws.HttpMethod;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.CannedAccessControlList;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -41,7 +45,7 @@ public abstract class GeneralS3Service {
     private static final String URL = "url";
     private static final String $S3KEY = "$key";
 
-    public String getAccessURL(String bucket, String fileKey, String directory, AmazonS3Client amazonS3, int timeout) {
+    protected String getAccessURL(String bucket, String fileKey, String directory, AmazonS3Client amazonS3, int timeout) {
         GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(
                 bucket, joinPath(directory, fileKey));
         generatePresignedUrlRequest.setMethod(HttpMethod.GET);
@@ -52,7 +56,7 @@ public abstract class GeneralS3Service {
         return s.toString();
     }
 
-    public Map<String, String> getUploadParams(String awsAccessKeyId, String awsSecretAccessKey, String bucket, String fileKey, String callback, String directory, int maxSize, int timeout, boolean isPrivate, String contentType) {
+    protected Map<String, String> getUploadParams(String awsAccessKeyId, String awsSecretAccessKey, String bucket, String fileKey, String callback, String directory, int maxSize, int timeout, boolean isPrivate, String contentType) {
         Map<String, String> formFields = null;
         if(isPrivate) {
             formFields = makeFormFields(
@@ -77,6 +81,19 @@ public abstract class GeneralS3Service {
         formFields.put(SIGNATURE, signature);
         formFields.put(URL, "https://" + bucket + ".s3.amazonaws.com");
         return formFields;
+    }
+
+    protected void directUploadFile(String bucket, String fileKey, String directory, InputStream inputStream, String mimeType, boolean isPublic, AmazonS3Client amazonS3) {
+        String key = joinPath(directory, fileKey);
+        ObjectMetadata objectMetadata = new ObjectMetadata();
+        objectMetadata.setContentType(mimeType);
+        PutObjectRequest putObjectRequest = new PutObjectRequest(bucket, key, inputStream, objectMetadata);
+        if(isPublic) {
+            putObjectRequest.setCannedAcl(CannedAccessControlList.PublicRead);
+        } else {
+            putObjectRequest.setCannedAcl(CannedAccessControlList.Private);
+        }
+        amazonS3.putObject(putObjectRequest);
     }
 
     private String createSignature(String policy, String awsSecretAccessKey)
@@ -129,7 +146,7 @@ public abstract class GeneralS3Service {
         return formFields;
     }
 
-    private String joinPath(String basePath, String subPath) {
+    protected String joinPath(String basePath, String subPath) {
         String path = basePath;
         if (!path.endsWith("/")) {
             path += "/";
