@@ -5,7 +5,7 @@
 
 	<groupId>me.vcoder</groupId>
 	<artifactId>s3helper</artifactId>
-	<version>0.0.4</version>
+	<version>0.0.5</version>
 	<packaging>jar</packaging>
 
 	<name>s3helper</name>
@@ -23,7 +23,7 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<java.version>1.8</java.version>
 
-		<aws.java.sdk.version>1.8.7</aws.java.sdk.version>
+		<aws.java.sdk.version>1.11.358</aws.java.sdk.version>
 	</properties>
 
 	<dependencies>

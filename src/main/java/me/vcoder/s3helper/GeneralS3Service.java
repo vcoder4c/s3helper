@@ -2,10 +2,7 @@ package me.vcoder.s3helper;
 
 import com.amazonaws.HttpMethod;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.model.CannedAccessControlList;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +14,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author baodn
@@ -45,9 +43,18 @@ public abstract class GeneralS3Service {
     private static final String URL = "url";
     private static final String $S3KEY = "$key";
 
-    protected String getAccessURL(String bucket, String fileKey, String directory, AmazonS3Client amazonS3, int timeout) {
+    /**
+     * Get the access URL for a file
+     * @param bucket
+     * @param fileName
+     * @param directory
+     * @param amazonS3
+     * @param timeout
+     * @return
+     */
+    protected String getAccessURL(String bucket, String fileName, String directory, AmazonS3Client amazonS3, int timeout) {
         GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(
-                bucket, joinPath(directory, fileKey));
+                bucket, joinPath(directory, fileName));
         generatePresignedUrlRequest.setMethod(HttpMethod.GET);
         generatePresignedUrlRequest.setExpiration(getAmazonS3Expiration(timeout));
         generatePresignedUrlRequest.setBucketName(bucket);
@@ -56,6 +63,20 @@ public abstract class GeneralS3Service {
         return s.toString();
     }
 
+    /**
+     * Get the upload form for client side to help them can upload directly to S3 securely
+     * @param awsAccessKeyId
+     * @param awsSecretAccessKey
+     * @param bucket
+     * @param fileKey
+     * @param callback
+     * @param directory
+     * @param maxSize
+     * @param timeout
+     * @param isPrivate
+     * @param contentType
+     * @return
+     */
     protected Map<String, String> getUploadParams(String awsAccessKeyId, String awsSecretAccessKey, String bucket, String fileKey, String callback, String directory, int maxSize, int timeout, boolean isPrivate, String contentType) {
         Map<String, String> formFields = null;
         if(isPrivate) {
@@ -83,8 +104,18 @@ public abstract class GeneralS3Service {
         return formFields;
     }
 
-    protected void directUploadFile(String bucket, String fileKey, String directory, InputStream inputStream, String mimeType, boolean isPublic, AmazonS3Client amazonS3) {
-        String key = joinPath(directory, fileKey);
+    /**
+     * Directly upload to S3
+     * @param bucket
+     * @param fileName
+     * @param directory
+     * @param inputStream
+     * @param mimeType
+     * @param isPublic
+     * @param amazonS3
+     */
+    protected void directUploadFile(String bucket, String fileName, String directory, InputStream inputStream, String mimeType, boolean isPublic, AmazonS3Client amazonS3) {
+        String key = joinPath(directory, fileName);
         ObjectMetadata objectMetadata = new ObjectMetadata();
         objectMetadata.setContentType(mimeType);
         PutObjectRequest putObjectRequest = new PutObjectRequest(bucket, key, inputStream, objectMetadata);
@@ -96,6 +127,44 @@ public abstract class GeneralS3Service {
         amazonS3.putObject(putObjectRequest);
     }
 
+    /**
+     * Delete a file with filename and its directory
+     * @param bucket
+     * @param fileName
+     * @param directory
+     * @param amazonS3
+     */
+    protected void deleteFile(String bucket, String fileName, String directory, AmazonS3Client amazonS3) {
+        DeleteObjectRequest request = new DeleteObjectRequest(bucket, joinPath(directory, fileName));
+        amazonS3.deleteObject(request);
+    }
+
+    /**
+     * Retrieve a list of file key on a bucket and directory
+     * @param bucket
+     * @param directory
+     * @param amazonS3
+     * @return List of file key (file key contains directory)
+     */
+    protected List<String> list(String bucket, String directory, AmazonS3Client amazonS3) {
+        ListObjectsRequest listObjectsRequest = new ListObjectsRequest();
+        listObjectsRequest.setBucketName(bucket);
+        listObjectsRequest.setPrefix(directory + "/");
+
+        ObjectListing listing = amazonS3.listObjects(listObjectsRequest);
+        List<S3ObjectSummary> objectSummaries = listing.getObjectSummaries();
+        return objectSummaries.stream().map(S3ObjectSummary::getKey).collect(Collectors.toList());
+    }
+
+    /**
+     * Create signature
+     * @param policy
+     * @param awsSecretAccessKey
+     * @return Signature as String
+     * @throws NoSuchAlgorithmException
+     * @throws UnsupportedEncodingException
+     * @throws InvalidKeyException
+     */
     private String createSignature(String policy, String awsSecretAccessKey)
             throws NoSuchAlgorithmException, UnsupportedEncodingException,
             InvalidKeyException {
@@ -107,6 +176,15 @@ public abstract class GeneralS3Service {
         return signature;
     }
 
+    /**
+     * Make policy with specific bucket, max size, timeout constraint
+     * @param formFields
+     * @param bucket
+     * @param maxSize
+     * @param timeout
+     * @return
+     * @throws UnsupportedEncodingException
+     */
     private String makePolicy(Map<String, String> formFields, String bucket, int maxSize, int timeout)
             throws UnsupportedEncodingException {
         String policyDocument = "{\"expiration\": \"" + $EXPIRATION + "\","
@@ -130,13 +208,20 @@ public abstract class GeneralS3Service {
                 .replace($CONTENT_LENGTH, String.valueOf(maxSize))
                 .replace($S3KEY, formFields.get(KEY))
                 .replace($CONTENT_TYPE, formFields.get(CONTENT_TYPE));
-        LOGGER.info("policy Document:" + policyDocument);
         String policy = Base64.getMimeEncoder()
                 .encodeToString(policyDocument.getBytes(UTF_8)).replaceAll("\n", "")
                 .replaceAll("\r", "");
         return policy;
     }
 
+    /**
+     * Create the form for uploading. This form is used by client side to help them can upload to S3 directly
+     * @param s3Key
+     * @param acl
+     * @param callback
+     * @param contentType
+     * @return
+     */
     private Map<String, String> makeFormFields(String s3Key, String acl, String callback, String contentType) {
         Map<String, String> formFields = new HashMap<>();
         formFields.put(KEY, s3Key);
@@ -146,6 +231,12 @@ public abstract class GeneralS3Service {
         return formFields;
     }
 
+    /**
+     * Join two path
+     * @param basePath
+     * @param subPath
+     * @return
+     */
     protected String joinPath(String basePath, String subPath) {
         String path = basePath;
         if (!path.endsWith("/")) {
@@ -158,9 +249,25 @@ public abstract class GeneralS3Service {
         return path;
     }
 
+    /**
+     * Extract file name from file key.
+     * Ex: /test/abc.png will return abc.png
+     * @param fileKey
+     * @return filename
+     */
+    protected String getFileName(String fileKey) {
+        String[] tmp = fileKey.split("/");
+        return tmp[tmp.length - 1];
+    }
+
+    /**
+     * Return a date by adding timeout (seconds) to the current date
+     * @param timeout
+     * @return expired date
+     */
     private Date getAmazonS3Expiration(int timeout) {
         Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.MINUTE, timeout * 60);
+        cal.add(Calendar.SECOND, timeout);
         return cal.getTime();
     }
 }
